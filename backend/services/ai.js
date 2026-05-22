@@ -421,6 +421,98 @@ async function vendorQuoteCompare(input = {}) {
   return safeJsonParse(r, { summary: typeof r === 'string' ? r : 'No response', ranking: [] });
 }
 
+// ──────────────────────────────────────────────────────────────
+// 17. Hive Acoustic Anomaly (Apply pass 7)
+// ──────────────────────────────────────────────────────────────
+async function hiveAcousticAnomaly(input = {}) {
+  const sys = `${SYSTEM_PROMPT} Classify a hive acoustic recording into anomaly categories distinct from queen status alone. Return strict JSON:
+{
+  "hive_id": string,
+  "anomalies": [{ "category": "varroa_stress"|"queenlessness_drift"|"robbing"|"swarm_prep"|"foulbrood_suspect"|"normal", "confidence": number, "evidence": string }],
+  "primary_anomaly": string,
+  "primary_confidence": number,
+  "recommended_inspection_focus": [string],
+  "urgency": "routine"|"urgent"|"critical",
+  "summary": string
+}`;
+  const usr = `Input:\n${JSON.stringify(input, null, 2)}`;
+  const r = await callOpenRouter(sys, usr);
+  return safeJsonParse(r, { summary: typeof r === 'string' ? r : 'No response', anomalies: [] });
+}
+
+// ──────────────────────────────────────────────────────────────
+// 18. Varroa Risk Score (pre-count)
+// ──────────────────────────────────────────────────────────────
+async function varroaRiskScore(input = {}) {
+  const sys = `${SYSTEM_PROMPT} Estimate pre-count varroa risk from inspection narrative + brood metrics. Return strict JSON:
+{
+  "hive_id": string,
+  "risk_score": number,
+  "risk_band": "low"|"moderate"|"high"|"critical",
+  "signals": [{ "name": string, "weight": number, "narrative": string }],
+  "recommended_sampling_cadence_days": number,
+  "summary": string
+}`;
+  const usr = `Input:\n${JSON.stringify(input, null, 2)}`;
+  const r = await callOpenRouter(sys, usr);
+  return safeJsonParse(r, { summary: typeof r === 'string' ? r : 'No response', signals: [] });
+}
+
+// ──────────────────────────────────────────────────────────────
+// 19. Queen Health Assess (multi-signal)
+// ──────────────────────────────────────────────────────────────
+async function queenHealthAssess(input = {}) {
+  const sys = `${SYSTEM_PROMPT} Assess queen vitality from multi-signal evidence (laying pattern, brood gap, supersedure cells, age). Return strict JSON:
+{
+  "queen_id": string,
+  "vitality_score": number,
+  "tier": "failing"|"declining"|"stable"|"vigorous",
+  "signals": [{ "name": string, "value": string, "impact": "positive"|"neutral"|"negative" }],
+  "recommended_action": "monitor"|"requeen_planned"|"requeen_urgent"|"supersede",
+  "follow_up_days": number,
+  "summary": string
+}`;
+  const usr = `Input:\n${JSON.stringify(input, null, 2)}`;
+  const r = await callOpenRouter(sys, usr);
+  return safeJsonParse(r, { summary: typeof r === 'string' ? r : 'No response', signals: [] });
+}
+
+// ──────────────────────────────────────────────────────────────
+// 20. Beekeeper Mentor (RAG-lite Q&A)
+// ──────────────────────────────────────────────────────────────
+async function beekeeperMentor(input = {}) {
+  const sys = `${SYSTEM_PROMPT} You are an in-app mentor for new beekeepers. Use ONLY the provided apiary context as factual ground. Return strict JSON:
+{
+  "answer": string,
+  "context_used": [string],
+  "follow_up_questions": [string],
+  "confidence": number,
+  "summary": string
+}`;
+  const usr = `Question + context:\n${JSON.stringify(input, null, 2)}`;
+  const r = await callOpenRouter(sys, usr);
+  return safeJsonParse(r, { summary: typeof r === 'string' ? r : 'No response', answer: '' });
+}
+
+// ──────────────────────────────────────────────────────────────
+// 21. Foraging Optimizer
+// ──────────────────────────────────────────────────────────────
+async function foragingOptimizer(input = {}) {
+  const sys = `${SYSTEM_PROMPT} Joint optimizer over forecast weather + plant phenology + apiary placement. Return strict JSON:
+{
+  "apiary": string,
+  "current_outlook": "poor"|"fair"|"good"|"excellent",
+  "moves": [{ "action": "stay"|"shift"|"split", "target_location": string, "rationale": string, "expected_yield_lift_pct": number }],
+  "phenology_window": { "peak_bloom": string, "tail_off": string },
+  "weather_constraints": [string],
+  "recommendations": [string],
+  "summary": string
+}`;
+  const usr = `Input:\n${JSON.stringify(input, null, 2)}`;
+  const r = await callOpenRouter(sys, usr);
+  return safeJsonParse(r, { summary: typeof r === 'string' ? r : 'No response', moves: [] });
+}
+
 module.exports = {
   callOpenRouter,
   safeJsonParse,
@@ -440,4 +532,9 @@ module.exports = {
   plantSourceMap,
   equipmentPrognostic,
   vendorQuoteCompare,
+  hiveAcousticAnomaly,
+  varroaRiskScore,
+  queenHealthAssess,
+  beekeeperMentor,
+  foragingOptimizer,
 };

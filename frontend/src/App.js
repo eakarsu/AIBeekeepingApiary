@@ -53,6 +53,24 @@ import { getToken } from './services/api';
 
 import './App.css';
 
+import CodexCustomVizFeature from './pages/CodexCustomVizFeature';
+import CodexOperationsFeature from './pages/CodexOperationsFeature';
+
+// Apply pass 7 — new pages.
+import AIHiveAcousticAnomalyPage from './pages/AIHiveAcousticAnomalyPage';
+import AIVarroaRiskScorePage from './pages/AIVarroaRiskScorePage';
+import AIQueenHealthAssessPage from './pages/AIQueenHealthAssessPage';
+import AIBeekeeperMentorPage from './pages/AIBeekeeperMentorPage';
+import AIForagingOptimizerPage from './pages/AIForagingOptimizerPage';
+import AINectarFlowCalendarPage from './pages/AINectarFlowCalendarPage';
+import TreatmentLabelsPage from './pages/TreatmentLabelsPage';
+import PesticideSetbacksPage from './pages/PesticideSetbacksPage';
+import MarketPricesPage from './pages/MarketPricesPage';
+import BiosecurityScoresPage from './pages/BiosecurityScoresPage';
+import ContractRevenueModelsPage from './pages/ContractRevenueModelsPage';
+import GeneticResiliencePage from './pages/GeneticResiliencePage';
+import QueenLineagePage from './pages/QueenLineagePage';
+
 function RequireAuth({ children }) {
   const location = useLocation();
   if (!getToken()) {
@@ -69,6 +87,9 @@ function ShellRoutes() {
         <Topbar />
         <div style={{ padding: '24px 32px' }}>
           <Routes>
+        <Route path="/codex/custom-viz" element={<CodexCustomVizFeature />} />
+        <Route path="/codex/operations" element={<CodexOperationsFeature />} />
+
             <Route path="/" element={<Dashboard />} />
 
             <Route path="/apiaries"              element={<ApiariesPage />} />
@@ -110,6 +131,21 @@ function ShellRoutes() {
             <Route path="/webhooks" element={<WebhooksPage />} />
 
             <Route path="/custom-views" element={<CustomViewsPage />} />
+
+            {/* Apply pass 7 — new routes */}
+            <Route path="/ai/hive-acoustic-anomaly"   element={<AIHiveAcousticAnomalyPage />} />
+            <Route path="/ai/varroa-risk-score"       element={<AIVarroaRiskScorePage />} />
+            <Route path="/ai/queen-health-assess"     element={<AIQueenHealthAssessPage />} />
+            <Route path="/ai/beekeeper-mentor"        element={<AIBeekeeperMentorPage />} />
+            <Route path="/ai/foraging-optimizer"      element={<AIForagingOptimizerPage />} />
+            <Route path="/ai/nectar-flow-calendar"    element={<AINectarFlowCalendarPage />} />
+            <Route path="/treatment-labels"           element={<TreatmentLabelsPage />} />
+            <Route path="/pesticide-setbacks"         element={<PesticideSetbacksPage />} />
+            <Route path="/market-prices"              element={<MarketPricesPage />} />
+            <Route path="/biosecurity-scores"         element={<BiosecurityScoresPage />} />
+            <Route path="/contract-revenue-models"    element={<ContractRevenueModelsPage />} />
+            <Route path="/genetic-resilience"         element={<GeneticResiliencePage />} />
+            <Route path="/queen-lineage"              element={<QueenLineagePage />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

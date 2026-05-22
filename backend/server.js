@@ -135,6 +135,14 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 // Custom analytics views (apiary map, hive sparklines, varroa trend, honey calendar)
 app.use('/api/custom-views', require('./routes/customViews'));
 
+// Apply pass 7 — full backlog routes.
+app.use('/api/treatment-labels',          require('./routes/treatmentLabels'));
+app.use('/api/pesticide-setbacks',        require('./routes/pesticideSetbacks'));
+app.use('/api/market-prices',             require('./routes/marketPrices'));
+app.use('/api/biosecurity-scores',        require('./routes/biosecurityScores'));
+app.use('/api/contract-revenue-models',   require('./routes/contractRevenueModels'));
+app.use('/api/genetic-resilience',        require('./routes/geneticResilience'));
+
 app.listen(PORT, () => {
   console.log(`\nAI Beekeeping & Apiary API running on http://localhost:${PORT}\n`);
 });

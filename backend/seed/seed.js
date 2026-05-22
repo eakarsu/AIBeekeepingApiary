@@ -41,6 +41,14 @@ async function run() {
       DROP TABLE IF EXISTS attachments           CASCADE;
       DROP TABLE IF EXISTS webhooks              CASCADE;
       DROP TABLE IF EXISTS webhook_deliveries    CASCADE;
+
+      DROP TABLE IF EXISTS treatment_labels           CASCADE;
+      DROP TABLE IF EXISTS pesticide_setbacks         CASCADE;
+      DROP TABLE IF EXISTS market_prices              CASCADE;
+      DROP TABLE IF EXISTS biosecurity_scores         CASCADE;
+      DROP TABLE IF EXISTS contract_revenue_models    CASCADE;
+      DROP TABLE IF EXISTS genetic_resilience_records CASCADE;
+      DROP TABLE IF EXISTS mentor_threads             CASCADE;
     `);
 
     console.log('[seed] applying migrations...');
@@ -48,6 +56,8 @@ async function run() {
     await client.query(schema1);
     const schema2 = fs.readFileSync(path.join(__dirname, '..', 'migrations', '002_schema.sql'), 'utf8');
     await client.query(schema2);
+    const schema3 = fs.readFileSync(path.join(__dirname, '..', 'migrations', '003_schema.sql'), 'utf8');
+    await client.query(schema3);
 
     console.log('[seed] inserting apiaries...');
     const apiaries = [
@@ -539,6 +549,102 @@ async function run() {
       await client.query(
         `INSERT INTO webhooks (name,url,secret,events,active) VALUES ($1,$2,$3,$4,$5)`,
         w
+      );
+    }
+
+    console.log('[seed] inserting treatment_labels...');
+    const labels = [
+      ['LBL-001','Apivar (amitraz)','Amitraz','Veto-pharma','73291-1', 14, 24, '10-32C','synthetic_acaricide','Strips, 6-week regimen'],
+      ['LBL-002','Apiguard','Thymol','Vita Bee Health','79671-1', 0, 24, '15-30C','essential_oil','Two 25g doses, 14d apart'],
+      ['LBL-003','Formic Pro','Formic acid','NOD Apiary','75710-2', 0, 48, '10-29C','organic_acid','Strips, 14-day application'],
+      ['LBL-004','Oxalic acid (dribble)','Oxalic acid','Generic','91266-1', 0, 4,  '0-15C','organic_acid','Broodless period preferred'],
+      ['LBL-005','HopGuard 3','Hop beta acids','BetaTec','83623-3', 0, 12, '10-32C','hop_extract','Strips, 14-day cycle'],
+    ];
+    for (const l of labels) {
+      await client.query(
+        `INSERT INTO treatment_labels (label_id,product,active_ingredient,manufacturer,epa_reg_no,withdrawal_days_honey,reentry_interval_hours,approved_temp_range_c,resistance_class,notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        l
+      );
+    }
+
+    console.log('[seed] inserting pesticide_setbacks (EPA baseline)...');
+    const setbacks = [
+      ['PSB-001','AP-001','Imidacloprid (foliar)','highly_toxic',500,520,'compliant','EPA','Almond bloom drift buffer'],
+      ['PSB-002','AP-005','Chlorpyrifos','high',100,80,'violation','EPA','Orchard adjacent, raise to 120m'],
+      ['PSB-003','AP-007','Glyphosate','low',0,0,'compliant','EPA','Low bee toxicity'],
+      ['PSB-004','AP-009','Clothianidin (seed-treated)','highly_toxic',500,510,'compliant','EPA','Post-almond hives'],
+      ['PSB-005','AP-003','Carbaryl','moderate',30,25,'review','EPA','Borderline; verify treatment timing'],
+    ];
+    for (const s of setbacks) {
+      await client.query(
+        `INSERT INTO pesticide_setbacks (setback_id,apiary_id,pesticide,toxicity_class,required_setback_m,actual_setback_m,status,source_authority,notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        s
+      );
+    }
+
+    console.log('[seed] inserting market_prices...');
+    const prices = [
+      ['MKT-001','honey','US national','lb',3.85,'2026-05-01','USDA NASS (manual entry)','Wholesale wildflower'],
+      ['MKT-002','honey','CA','lb',4.10,'2026-05-01','USDA NASS','Premium varietal'],
+      ['MKT-003','wax','US national','lb',7.25,'2026-05-01','ABF','Filtered, food-grade'],
+      ['MKT-004','queens','US national','each',45.00,'2026-05-01','Beekeeper avg','VSH-Italian crosses'],
+      ['MKT-005','pollen','US national','lb',12.50,'2026-05-01','Beekeeper avg','Fresh trapped'],
+    ];
+    for (const p of prices) {
+      await client.query(
+        `INSERT INTO market_prices (price_id,commodity,region,unit,price_usd,reported_at,source,notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        p
+      );
+    }
+
+    console.log('[seed] inserting biosecurity_scores...');
+    const bios = [
+      ['BIO-001','AP-001',82.0,'low','open_outbreaks=0; varroa_critical=1; treatments_last_60d=3','2026-05-15','Stable yard, low pressure'],
+      ['BIO-002','AP-005',38.0,'critical','AFB confirmed; quarantine','2026-05-15','High-risk; quarantine zone'],
+      ['BIO-003','AP-007',64.0,'medium','DWV present; varroa elevated','2026-05-15','Watch'],
+      ['BIO-004','AP-009',71.5,'medium','Post-almond stress','2026-05-15','Recovering from migration'],
+      ['BIO-005','AP-003',88.0,'low','Clean inspection record','2026-05-15','Strong baseline'],
+    ];
+    for (const b of bios) {
+      await client.query(
+        `INSERT INTO biosecurity_scores (score_id,apiary_id,score,tier,drivers,assessed_at,notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        b
+      );
+    }
+
+    console.log('[seed] inserting contract_revenue_models...');
+    const crm = [
+      ['CRM-001','POL-2026-001',45000.00,3500.00,92.0,41500.00,'accepted','Almond contract — strong fit'],
+      ['CRM-002','POL-2026-002',18000.00,2100.00,85.0,15900.00,'accepted','Blueberry contract'],
+      ['CRM-003','POL-2026-003',9500.00,4200.00,60.0,5300.00,'draft','Apple pollination — marginal margin'],
+      ['CRM-004','POL-2026-004',14000.00,1800.00,78.0,12200.00,'accepted','Cranberry pollination'],
+      ['CRM-005','POL-2026-005',22500.00,3050.00,70.0,19450.00,'draft','Avocado — hive shortfall risk'],
+    ];
+    for (const r of crm) {
+      await client.query(
+        `INSERT INTO contract_revenue_models (model_id,contract_id,gross_usd,travel_cost_usd,hive_fit_score,margin_usd,status,notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        r
+      );
+    }
+
+    console.log('[seed] inserting genetic_resilience_records...');
+    const gen = [
+      ['GEN-001','Q-2026-001','VSH-Italian',82.0,78.0,1.5,'resistant','2026-05-10','Strong VSH expression'],
+      ['GEN-002','Q-2025-014','Russian',71.0,65.0,2.4,'tolerant','2026-05-10','Decent hygienic'],
+      ['GEN-003','Q-2024-007','Carniolan',48.0,52.0,4.8,'susceptible','2026-05-10','Declining'],
+      ['GEN-004','Q-2026-003','VSH-Pol-line',88.0,84.0,1.1,'resistant','2026-05-10','Pol-line cross'],
+      ['GEN-005','Q-2023-002','Italian',35.0,40.0,6.2,'vulnerable','2026-05-10','High mite load; cull'],
+    ];
+    for (const g of gen) {
+      await client.query(
+        `INSERT INTO genetic_resilience_records (record_id,queen_id,line_name,vsh_score,hygienic_score,varroa_load_post,resistance_rating,assessed_at,notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        g
       );
     }
 

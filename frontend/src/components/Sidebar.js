@@ -53,8 +53,30 @@ const AI_PLANNING = [
   { to: '/ai/supply-resupply-plan',     label: 'AI · Supply Resupply Plan' },
   { to: '/ai/beekeeper-schedule',       label: 'AI · Beekeeper Schedule' },
   { to: '/ai/plant-source-map',         label: 'AI · Plant Source Map' },
+  { to: '/ai/nectar-flow-calendar',     label: 'AI · Nectar Flow Calendar' },
   { to: '/ai/equipment-prognostic',     label: 'AI · Equipment Prognostic' },
   { to: '/ai/vendor-quote-compare',     label: 'AI · Vendor Quote Compare' },
+  { to: '/ai/foraging-optimizer',       label: 'AI · Foraging Optimizer' },
+  { to: '/ai/beekeeper-mentor',         label: 'AI · Beekeeper Mentor' },
+];
+
+const AI_INSPECTION_EXT = [
+  { to: '/ai/hive-acoustic-anomaly',  label: 'AI · Hive Acoustic Anomaly' },
+  { to: '/ai/varroa-risk-score',      label: 'AI · Varroa Risk Score' },
+  { to: '/ai/queen-health-assess',    label: 'AI · Queen Health Assess' },
+];
+
+const COMPLIANCE_LINKS = [
+  { to: '/treatment-labels',         label: 'Treatment Labels' },
+  { to: '/pesticide-setbacks',       label: 'Pesticide Setbacks' },
+  { to: '/biosecurity-scores',       label: 'Biosecurity Scores' },
+  { to: '/queen-lineage',            label: 'Queen Lineage' },
+  { to: '/genetic-resilience',       label: 'Genetic Resilience' },
+];
+
+const COMMERCIAL_LINKS = [
+  { to: '/market-prices',            label: 'Market Prices' },
+  { to: '/contract-revenue-models',  label: 'Contract Revenue Models' },
 ];
 
 export default function Sidebar() {
@@ -83,8 +105,15 @@ export default function Sidebar() {
       <div className="sidebar-group-label">Governance</div>
       {GOVERNANCE_LINKS.map((l) => <NavLink key={l.to} to={l.to}>{l.label}</NavLink>)}
 
+      <div className="sidebar-group-label">Compliance</div>
+      {COMPLIANCE_LINKS.map((l) => <NavLink key={l.to} to={l.to}>{l.label}</NavLink>)}
+
+      <div className="sidebar-group-label">Commercial</div>
+      {COMMERCIAL_LINKS.map((l) => <NavLink key={l.to} to={l.to}>{l.label}</NavLink>)}
+
       <div className="sidebar-group-label">AI Inspection</div>
       {AI_INSPECTION.map((l) => <NavLink key={l.to} to={l.to}>{l.label}</NavLink>)}
+      {AI_INSPECTION_EXT.map((l) => <NavLink key={l.to} to={l.to}>{l.label}</NavLink>)}
 
       <div className="sidebar-group-label">AI Planning</div>
       {AI_PLANNING.map((l) => <NavLink key={l.to} to={l.to}>{l.label}</NavLink>)}

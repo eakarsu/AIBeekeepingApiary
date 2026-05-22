@@ -130,6 +130,42 @@ const SAMPLES = {
     { label: 'Sugar syrup (gallon)', values: { item: 'Sugar syrup (gallon)' } },
     { label: 'Hive bodies (10-frame deep)', values: { item: 'Hive bodies (10-frame deep)' } },
   ],
+  // Apply pass 7 samples.
+  'hive-acoustic-anomaly': [
+    { label: 'HV-1009 swarm prep buildup', values: { hive_id: 'HV-1009', captured_at: '2026-05-07 11:30Z', notes: 'Buildup hum, queen cells observed last inspection' } },
+    { label: 'HV-1010 robbing roar', values: { hive_id: 'HV-1010', captured_at: '2026-05-09 14:00Z', notes: 'Aggressive entrance fight, defensive roar' } },
+    { label: 'HV-1003 queenless warble', values: { hive_id: 'HV-1003', captured_at: '2026-05-08 10:00Z', notes: 'High-pitched warble, broken roar' } },
+    { label: 'HV-1001 normal contented', values: { hive_id: 'HV-1001', captured_at: '2026-05-10 09:00Z', notes: 'Steady low roar' } },
+    { label: 'HV-1015 varroa stress',  values: { hive_id: 'HV-1015', captured_at: '2026-05-11 08:30Z', notes: 'DWV symptoms observed; nervous buzz' } },
+  ],
+  'varroa-risk-score': [
+    { label: 'HV-1010 spotty brood + drone-heavy', values: { hive_id: 'HV-1010', narrative: 'Spotty brood, elevated drone count, deformed wing observed.', drone_count: 200, brood_gap: true } },
+    { label: 'HV-1001 tight pattern + clean drones', values: { hive_id: 'HV-1001', narrative: 'Tight brood pattern, healthy drones, no DWV.', drone_count: 50, brood_gap: false } },
+    { label: 'HV-1009 borderline pre-flow', values: { hive_id: 'HV-1009', narrative: 'Moderate buildup, some scattered cells.', drone_count: 120, brood_gap: false } },
+    { label: 'HV-1015 critical pre-count', values: { hive_id: 'HV-1015', narrative: 'Severe wing deformity, brood collapse risk.', drone_count: 250, brood_gap: true } },
+    { label: 'HV-1005 quiet baseline',     values: { hive_id: 'HV-1005', narrative: 'Quiet steady colony, no abnormal signs.', drone_count: 40, brood_gap: false } },
+  ],
+  'queen-health-assess': [
+    { label: 'Q-2026-001 (year-old, vigorous)', values: { queen_id: 'Q-2026-001' } },
+    { label: 'Q-2025-014 (supersedure cells)',   values: { queen_id: 'Q-2025-014' } },
+    { label: 'Q-2024-007 (2y, declining)',       values: { queen_id: 'Q-2024-007' } },
+    { label: 'Q-2026-003 (newly mated)',         values: { queen_id: 'Q-2026-003' } },
+    { label: 'Q-2023-002 (failing)',             values: { queen_id: 'Q-2023-002' } },
+  ],
+  'beekeeper-mentor': [
+    { label: 'Why do bees beard?',                values: { question: 'Why do my bees beard at the entrance on hot days?' } },
+    { label: 'When to add a super?',              values: { question: 'When should I add a honey super?' } },
+    { label: 'Spotting AFB vs EFB',               values: { question: 'How do I tell American Foulbrood from European Foulbrood?' } },
+    { label: 'First-year overwintering',          values: { question: 'My first colony — how do I overwinter it in a cold climate?' } },
+    { label: 'Reading queen-cup vs queen-cell',   values: { question: 'How do I tell a queen cup from an active queen cell?' } },
+  ],
+  'foraging-optimizer': [
+    { label: 'AP-001 wildflower window',  values: { apiary_id: 'AP-001' } },
+    { label: 'AP-003 apple bloom peak',   values: { apiary_id: 'AP-003' } },
+    { label: 'AP-009 post-almond shift',  values: { apiary_id: 'AP-009' } },
+    { label: 'AP-007 mid-season holdout', values: { apiary_id: 'AP-007' } },
+    { label: 'AP-010 high desert',        values: { apiary_id: 'AP-010' } },
+  ],
 };
 
 // GET /api/ai/samples?feature=<verb>
@@ -405,5 +441,149 @@ router.post('/equipment-prognostic', async (req, res) => {
 
 // 16. vendor-quote-compare
 router.post('/vendor-quote-compare', runAi('vendor-quote-compare', ai.vendorQuoteCompare));
+
+// ──────────────────────────────────────────────────────────────
+// Apply pass 7 — new AI verbs.
+// ──────────────────────────────────────────────────────────────
+
+// 17. hive-acoustic-anomaly — generic anomaly classifier over hive_sounds.
+router.post('/hive-acoustic-anomaly', async (req, res) => {
+  try {
+    const input = req.body || {};
+    if (input.hive_id) {
+      const r = await pool.query(
+        'SELECT * FROM hive_sounds WHERE hive_id = $1 ORDER BY captured_at DESC LIMIT 5',
+        [input.hive_id]
+      );
+      input.recent_sounds = r.rows;
+    }
+    const result = await ai.hiveAcousticAnomaly(input);
+    await record('hive-acoustic-anomaly', input, result);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 18. varroa-risk-score — pre-count risk from narrative.
+router.post('/varroa-risk-score', async (req, res) => {
+  try {
+    const input = req.body || {};
+    if (input.hive_id) {
+      const r = await pool.query(
+        'SELECT * FROM inspections WHERE hive_id = $1 ORDER BY date DESC LIMIT 5',
+        [input.hive_id]
+      );
+      input.recent_inspections = r.rows;
+    }
+    const result = await ai.varroaRiskScore(input);
+    await record('varroa-risk-score', input, result);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 19. queen-health-assess — multi-signal queen vitality.
+router.post('/queen-health-assess', async (req, res) => {
+  try {
+    const input = req.body || {};
+    if (input.queen_id) {
+      const q = await pool.query('SELECT * FROM queens WHERE queen_id = $1 LIMIT 1', [input.queen_id]);
+      input.queen = q.rows[0];
+      if (q.rows[0]?.hive_id) {
+        const ins = await pool.query(
+          'SELECT * FROM inspections WHERE hive_id = $1 ORDER BY date DESC LIMIT 5',
+          [q.rows[0].hive_id]
+        );
+        input.recent_inspections = ins.rows;
+      }
+    }
+    const result = await ai.queenHealthAssess(input);
+    await record('queen-health-assess', input, result);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 20. beekeeper-mentor — context-aware Q&A, persists to mentor_threads.
+router.post('/beekeeper-mentor', async (req, res) => {
+  try {
+    const input = req.body || {};
+    const [ap, hv, ins, tx] = await Promise.all([
+      pool.query('SELECT apiary_id, name, location, hive_count, status FROM apiaries LIMIT 10'),
+      pool.query('SELECT hive_id, apiary_id, status, frame_count FROM hives LIMIT 20'),
+      pool.query('SELECT inspection_id, hive_id, date, brood_pattern, health FROM inspections ORDER BY date DESC LIMIT 10'),
+      pool.query('SELECT treatment_id, hive_id, product, applied_at, status FROM treatments ORDER BY applied_at DESC LIMIT 10'),
+    ]);
+    input.context = {
+      apiaries: ap.rows,
+      hives: hv.rows,
+      recent_inspections: ins.rows,
+      recent_treatments: tx.rows,
+    };
+    const result = await ai.beekeeperMentor(input);
+    await record('beekeeper-mentor', { question: input.question }, result);
+    try {
+      await pool.query(
+        `INSERT INTO mentor_threads (thread_id, user_email, question, answer, context_summary)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          `MT-${Date.now()}`,
+          req.user?.email || 'unknown',
+          input.question || '',
+          (result && result.answer) || (result && result.summary) || '',
+          `apiaries=${ap.rows.length}, hives=${hv.rows.length}`,
+        ]
+      );
+    } catch (e) { console.warn('[ai] mentor thread persist failed:', e.message); }
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 21. foraging-optimizer — join weather + plants + apiaries.
+router.post('/foraging-optimizer', async (req, res) => {
+  try {
+    const input = req.body || {};
+    const [wb, ps] = await Promise.all([
+      pool.query('SELECT * FROM weather_briefs ORDER BY valid_at DESC LIMIT 5'),
+      pool.query('SELECT * FROM plant_sources ORDER BY distance_km ASC LIMIT 10'),
+    ]);
+    input.recent_weather = wb.rows;
+    input.plant_sources = ps.rows;
+    if (input.apiary_id) {
+      const a = await pool.query('SELECT * FROM apiaries WHERE apiary_id = $1 LIMIT 1', [input.apiary_id]);
+      input.apiary = a.rows[0];
+    }
+    const result = await ai.foragingOptimizer(input);
+    await record('foraging-optimizer', { apiary_id: input.apiary_id }, result);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/nectar-flow-calendar', async (req, res) => {
+  try {
+    const input = req.body || {};
+    const apiaryId = input.apiary_id || 'apiary';
+    const blooms = Array.isArray(input.bloom_sources) ? input.bloom_sources : ['clover', 'wildflower'];
+    const rainfall = Number(input.rainfall_mm_14d || 0);
+    const highC = Number(input.forecast_high_c || 22);
+    const base = Math.min(100, Math.max(0, blooms.length * 18 + rainfall * 0.8 - Math.max(0, highC - 30) * 3));
+    const flowBand = base >= 70 ? 'heavy' : base >= 40 ? 'moderate' : 'light';
+    const calendar = [1, 2, 3, 4].map((week) => {
+      const score = Math.max(0, Math.min(100, base - (week - 1) * 8));
+      return {
+        week: `week ${week}`,
+        expected_flow: score >= 70 ? 'heavy' : score >= 40 ? 'moderate' : 'light',
+        action: score >= 70 ? 'Add supers and verify extraction capacity.' : score >= 40 ? 'Inspect space and stage supers nearby.' : 'Focus on feed reserves and plant-source scouting.',
+      };
+    });
+    const result = {
+      apiary_id: apiaryId,
+      flow_score: Math.round(base),
+      flow_band: flowBand,
+      summary: `${blooms.join(', ')} bloom plus ${rainfall} mm recent rain indicates ${flowBand} nectar potential.`,
+      calendar,
+      generated_at: new Date().toISOString(),
+    };
+    await record('nectar-flow-calendar', input, result);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 module.exports = router;

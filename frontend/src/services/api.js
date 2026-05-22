@@ -151,6 +151,31 @@ export const aiPlantSourceMap            = aiPost('plant-source-map');
 export const aiEquipmentPrognostic       = aiPost('equipment-prognostic');
 export const aiVendorQuoteCompare        = aiPost('vendor-quote-compare');
 
+// Apply pass 7 — new AI verbs.
+export const aiHiveAcousticAnomaly = aiPost('hive-acoustic-anomaly');
+export const aiVarroaRiskScore     = aiPost('varroa-risk-score');
+export const aiQueenHealthAssess   = aiPost('queen-health-assess');
+export const aiBeekeeperMentor     = aiPost('beekeeper-mentor');
+export const aiForagingOptimizer   = aiPost('foraging-optimizer');
+export const aiNectarFlowCalendar  = aiPost('nectar-flow-calendar');
+
+// Apply pass 7 — new CRUD APIs.
+export const treatmentLabelsApi        = crud('treatment-labels');
+export const pesticideSetbacksApi      = crud('pesticide-setbacks');
+export const marketPricesApi           = crud('market-prices');
+export const biosecurityScoresApi      = crud('biosecurity-scores');
+export const contractRevenueModelsApi  = crud('contract-revenue-models');
+export const geneticResilienceApi      = crud('genetic-resilience');
+
+// Specialized endpoints.
+export const getQueenLineage         = (id) => request(`/queens/${id}/lineage`);
+export const getSetbackBaseline      = ()    => request('/pesticide-setbacks/baseline');
+export const getSetbackCompliance    = (id)  => request(`/pesticide-setbacks/${id}/compliance`);
+export const computeBiosecurityScore = (apiaryId) => request(`/biosecurity-scores/compute/${apiaryId}`);
+export const optimizeContractRevenue = (cid) => request(`/contract-revenue-models/optimize/${cid}`);
+export const scoreGeneticResilience  = (qid) => request(`/genetic-resilience/score/${qid}`);
+export const ingestMarketPrices      = ()    => request('/market-prices/ingest', { method: 'POST' });
+
 // AI history
 export const getAIHistory = (feature, limit = 25) => {
   const qs = new URLSearchParams({
