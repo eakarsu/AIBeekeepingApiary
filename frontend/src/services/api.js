@@ -1,6 +1,6 @@
 const API_BASE =
   (typeof window !== 'undefined' && window.__API_BASE__) ||
-  'http://localhost:3093/api';
+  '/api';
 
 export { API_BASE };
 
@@ -35,6 +35,8 @@ export function logout() {
     window.location.assign('/login');
   }
 }
+
+export const getDemoCredentials = () => request('/auth/demo-credentials');
 
 // Role helpers
 export function getRole() {

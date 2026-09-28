@@ -52,6 +52,9 @@ const PORT = process.env.BACKEND_PORT || 3093;
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3092,http://localhost:3093,http://localhost:3000')
   .split(',').map((o) => o.trim()).filter(Boolean);
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push(`http://127.0.0.1:${PORT}`, `http://localhost:${PORT}`);
+}
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
