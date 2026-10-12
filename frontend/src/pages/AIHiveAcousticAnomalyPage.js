@@ -13,7 +13,7 @@ export default function AIHiveAcousticAnomalyPage() {
         { key: 'captured_at', label: 'Captured At' },
         { key: 'notes',       label: 'Notes', type: 'textarea' },
       ]}
-      run={(v) => aiHiveAcousticAnomaly(v)}
+      run={(v, requestOptions) => aiHiveAcousticAnomaly(v, requestOptions)}
     />
   );
 }

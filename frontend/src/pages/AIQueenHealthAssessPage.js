@@ -12,7 +12,7 @@ export default function AIQueenHealthAssessPage() {
         { key: 'queen_id', label: 'Queen ID' },
         { key: 'notes',    label: 'Additional notes', type: 'textarea' },
       ]}
-      run={(v) => aiQueenHealthAssess(v)}
+      run={(v, requestOptions) => aiQueenHealthAssess(v, requestOptions)}
     />
   );
 }

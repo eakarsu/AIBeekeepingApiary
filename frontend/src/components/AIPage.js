@@ -1,5 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import AIResultDisplay from './AIResultDisplay';
+import useApiaryAIReferences from './ApiaryAIReferences';
+import { apiaryAIExamples, apiaryObservationKeys } from './ApiaryAIExamples';
+import { protectPresetRequest } from './SampleIntegrity';
+import AIFieldPresets, { completeExample } from './AIFieldPresets';
+import useCancelableAI from './useCancelableAI';
+import React, { useEffect, useRef, useState } from 'react';
+import AIResultDisplay from './AIResultView';
 import { getAIHistory, getAISamples } from '../services/api';
 
 /**
@@ -11,14 +16,18 @@ import { getAIHistory, getAISamples } from '../services/api';
  *   - run: async (values) => result
  *   - buttonLabel?
  */
-export default function AIPage({ title, subtitle, feature, inputs, run, buttonLabel = 'Run AI Analysis' }) {
+export default function AIPage({ title, subtitle, feature, inputs, run, buttonLabel = 'Generate with OpenRouter' }) {
   const initial = Object.fromEntries(
-    (inputs || []).map((i) => [i.key, i.defaultValue ?? (i.type === 'number' ? 0 : '')])
+    (inputs || []).map((i) => [i.key, i.defaultValue ?? (i.key === 'mites_per_100_bees' ? '' : i.type === 'number' ? 0 : '')])
   );
   const [values, setValues] = useState(initial);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const manualFields = useRef(new Set());
+  const references = useApiaryAIReferences(inputs || [], feature);
+  const [presetNote, setPresetNote] = useState('');
+  const aiRequest = useCancelableAI();
+  const { loading, result, error, setResult, setError } = aiRequest;
+
+
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRows, setHistoryRows] = useState([]);
@@ -40,27 +49,34 @@ export default function AIPage({ title, subtitle, feature, inputs, run, buttonLa
     return () => { alive = false; };
   }, [feature]);
 
-  const setField = (k, v) => setValues((s) => ({ ...s, [k]: v }));
+  const setField = (k, v) => { manualFields.current.add(k); setValues((s) => ({ ...s, [k]: v })); };
 
-  const applySample = (sample) => {
-    const next = { ...initial };
-    const sv = sample && sample.values ? sample.values : {};
-    for (const k of Object.keys(sv)) next[k] = sv[k];
-    setValues(next);
-    setResult(null);
-    setError(null);
+  const presetInputs = references.fields.map(field => /JSON/i.test(field.label || '') ? { ...field, type: 'json' } : field);
+
+  const applySample = (sample, index = 0) => {
+    const filled = protectPresetRequest(completeExample(presetInputs, sample || {}, index, title, values), values);
+    for (const key of apiaryObservationKeys) {
+      if (manualFields.current.has(key) && String(values[key] ?? '').trim()) filled[key] = values[key];
+    }
+    if (['queen-status-from-sound', 'hive-acoustic-anomaly'].includes(feature) && (!manualFields.current.has('captured_at') || !String(values.captured_at ?? '').trim())) {
+      const source = (references.records.hive_sounds || []).filter(row => String(row.hive_id) === String(filled.hive_id)).sort((a,b) => new Date(b.captured_at) - new Date(a.captured_at))[0];
+      filled.captured_at = source?.captured_at ? String(source.captured_at) : '';
+    }
+    if (feature === 'varroa-treatment-recommend' && (!manualFields.current.has('mites_per_100_bees') || !String(values.mites_per_100_bees ?? '').trim())) {
+      const source = (references.records.varroa_counts || []).filter(row => String(row.hive_id) === String(filled.hive_id)).sort((a,b) => new Date(b.sampled_at) - new Date(a.sampled_at))[0];
+      filled.mites_per_100_bees = source?.mites_per_100_bees !== null && source?.mites_per_100_bees !== undefined && Number.isFinite(Number(source.mites_per_100_bees)) ? Number(source.mites_per_100_bees) : '';
+    }
+    filled.demonstration_context = 'Example planning request. Hypothetical text and brood metrics are not verified observations; actual selected records remain native sources. Require qualified beekeeper and applicable label/regulatory review before action.';
+    setValues(filled); setPresetNote('Every editable non-source field is filled. Actual references and entered observations are retained; any missing genuine recording or count must be supplied before generating.');
+    setResult(null); setError(null);
   };
 
+  const missingSource = references.fields.find(field => field.recordReference && ((!/optional/i.test(field.label || '') || String(values[field.key] ?? '').trim()) && !field.options.some(option => String(option.value) === String(values[field.key]))));
+  const missingRecording = ['queen-status-from-sound', 'hive-acoustic-anomaly'].includes(feature) && !String(values.captured_at ?? '').trim();
+  const missingCount = feature === 'varroa-treatment-recommend' && String(values.mites_per_100_bees ?? '').trim() === '';
   const handleRun = async () => {
-    setLoading(true); setError(null); setResult(null);
-    try {
-      const r = await run(values);
-      setResult(r);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
+    if (references.loading || references.error || missingSource || missingRecording || missingCount) { setError('Select the genuine accessible source and supply missing actual recording/count data before generating.'); return; }
+    return aiRequest.run((options) => run(values, options));
   };
 
   const openHistory = async () => {
@@ -70,7 +86,8 @@ export default function AIPage({ title, subtitle, feature, inputs, run, buttonLa
     setHistoryRows([]);
     try {
       const rows = await getAIHistory(feature, 50);
-      setHistoryRows(Array.isArray(rows) ? rows : []);
+      if (!Array.isArray(rows)) throw new Error('Shared native AI history returned an unexpected response');
+      setHistoryRows(rows);
     } catch (e) {
       setHistoryError(e.message);
     } finally {
@@ -80,7 +97,7 @@ export default function AIPage({ title, subtitle, feature, inputs, run, buttonLa
   const closeHistory = () => setHistoryOpen(false);
 
   return (
-    <div>
+    <div className="sr-ai-workspace">
       <div className="page-header">
         <div>
           <h2>{title}</h2>
@@ -90,55 +107,52 @@ export default function AIPage({ title, subtitle, feature, inputs, run, buttonLa
           {feature && (
             <button className="btn secondary" onClick={openHistory}>History</button>
           )}
-          <button className="btn ai" onClick={handleRun} disabled={loading}>
+          <button className="btn ai" onClick={handleRun} disabled={loading || references.loading || Boolean(references.error) || Boolean(missingSource) || missingRecording || missingCount}>
             {loading ? <><span className="spinner" />Running...</> : buttonLabel}
           </button>
+          {loading && <button type="button" className="btn secondary btn-secondary" onClick={aiRequest.cancel}>Cancel</button>}
         </div>
       </div>
 
-      {samples && samples.length > 0 && inputs && inputs.length > 0 && (
-        <div className="card" style={{ marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <span style={{ fontWeight: 600, marginRight: 8 }}>Sample Fill:</span>
-            {samples.slice(0, 5).map((s, idx) => (
-              <button
-                key={idx}
-                type="button"
-                className="btn secondary"
-                title={s.label}
-                onClick={() => applySample(s)}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      <AIFieldPresets fields={presetInputs} samples={(apiaryAIExamples[feature] || samples).map((value, index) => value.values ? value : { label: ['Demo AI · Quick review', 'Demo AI · Team planning', 'Demo AI · Detailed review'][index], values: value })} context={title} disabled={loading} onFill={applySample} />
+      <p>Examples are explicitly hypothetical planning inputs. The native source lists are shared with authorized app users; selecting a readable record does not imply personal ownership, consent or treatment approval.</p>
+      {references.loading && <p role="status">Loading accessible native source records…</p>}
+      {references.error && <p role="alert">{references.error} <button type="button" onClick={() => void references.reload()}>Retry source records</button></p>}
+      {missingSource && !references.loading && !references.error && <p role="status">No selected accessible {missingSource.label}. Add or select an authorized existing source record; examples will never invent this identifier.</p>}
+      {missingRecording && <p role="status">Select an actual recording for this hive or enter its genuine captured timestamp. No recording metadata is fabricated.</p>}
+      {missingCount && <p role="status">Supply an actual varroa count or select a hive with a saved count. Zero is preserved when it is actually present.</p>}
+      {presetNote && <p role="status">{presetNote}</p>}
+      {aiRequest.notice && <div className="sr-notice" role="status">{aiRequest.notice}</div>}
 
       {(inputs && inputs.length > 0) && (
         <div className="card">
           <div className="form-grid">
-            {inputs.map((i) => (
+            {references.fields.map((i) => (
               <div key={i.key} className={`form-group ${i.type === 'textarea' ? 'full-width' : ''}`}>
-                <label>{i.label}</label>
+                <label htmlFor={'apiary-input-' + i.key}>{i.label}</label>
                 {i.type === 'select' ? (
-                  <select value={values[i.key] ?? ''} onChange={(e) => setField(i.key, e.target.value)}>
+                  <select id={'apiary-input-' + i.key} name={i.key} data-ai-field={i.key} onInput={() => manualFields.current.add(i.key)} value={values[i.key] ?? ''} onChange={(e) => setField(i.key, e.target.value)}>
                     <option value="">—</option>
-                    {(i.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+                    {(i.options || []).map((o) => { const value = typeof o === 'object' ? o.value : o; return <option key={value} value={value}>{typeof o === 'object' ? o.label : o}</option>; })}
                   </select>
                 ) : i.type === 'textarea' ? (
                   <textarea
+                    id={'apiary-input-' + i.key} name={i.key} data-ai-field={i.key} onInput={() => manualFields.current.add(i.key)}
                     placeholder={i.placeholder || ''}
                     value={values[i.key] ?? ''}
                     onChange={(e) => setField(i.key, e.target.value)}
                   />
                 ) : (
                   <input
+                    id={'apiary-input-' + i.key} name={i.key} data-ai-field={i.key} onInput={() => manualFields.current.add(i.key)}
                     type={i.type || 'text'}
+                    min={i.min ?? (i.type === 'number' ? 0 : undefined)}
+                    max={i.max}
+                    step={i.step ?? (i.key === 'mites_per_100_bees' ? 0.1 : i.type === 'number' ? 1 : undefined)}
                     placeholder={i.placeholder || ''}
                     value={values[i.key] ?? ''}
                     onChange={(e) =>
-                      setField(i.key, i.type === 'number' ? Number(e.target.value || 0) : e.target.value)
+                      setField(i.key, i.type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)
                     }
                   />
                 )}
@@ -158,12 +172,13 @@ export default function AIPage({ title, subtitle, feature, inputs, run, buttonLa
 
       {historyOpen && (
         <div className="modal-overlay" onClick={closeHistory}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 900 }}>
+          <div className="modal-content" role="dialog" aria-modal="true" aria-label={title + ' · Shared native history'} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 900 }}>
             <div className="modal-header">
               <h3>{title} · History</h3>
               <button className="modal-close" onClick={closeHistory}>×</button>
             </div>
             <div className="modal-body">
+              <p>This is the existing shared native AI history. Saved results are retained; loading inputs prepares a separate request and grants no treatment or operation approval.</p>
               {historyLoading && <div className="empty-state">Loading history...</div>}
               {historyError && <div className="ai-error">{historyError}</div>}
               {!historyLoading && !historyError && historyRows.length === 0 && (
@@ -177,6 +192,7 @@ export default function AIPage({ title, subtitle, feature, inputs, run, buttonLa
                       {row.created_at ? new Date(row.created_at).toLocaleString() : ''}
                     </span>
                   </div>
+                  <div className="sr-actions"><button type="button" className="btn secondary" disabled={loading} onClick={() => { setValues(Object.fromEntries(inputs.map(field => [field.key, row.input?.[field.key] ?? '']))); manualFields.current = new Set(inputs.map(field => field.key)); setHistoryOpen(false); setResult(null); setError(null); setPresetNote('Saved inputs loaded for review. Check any missing native source data; the original result is retained.'); }}>Edit inputs</button><button type="button" className="btn danger" disabled title="The native workflow has no result-delete endpoint">Delete · retained result</button></div>
                   {row.input && Object.keys(row.input).length > 0 && (
                     <details>
                       <summary>Input parameters</summary>
@@ -192,7 +208,7 @@ export default function AIPage({ title, subtitle, feature, inputs, run, buttonLa
               ))}
             </div>
             <div className="modal-footer">
-              <button className="btn secondary" onClick={closeHistory}>Close</button>
+              <button className="btn secondary" onClick={closeHistory}>Cancel</button>
             </div>
           </div>
         </div>

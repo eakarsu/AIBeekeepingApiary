@@ -13,7 +13,7 @@ export default function AIQueenStatusPage() {
         { key: 'captured_at', label: 'Captured At' },
         { key: 'notes',       label: 'Notes', type: 'textarea' },
       ]}
-      run={(v) => aiQueenStatusFromSound(v)}
+      run={(v, requestOptions) => aiQueenStatusFromSound(v, requestOptions)}
     />
   );
 }

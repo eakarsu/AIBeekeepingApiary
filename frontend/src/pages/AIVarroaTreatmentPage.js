@@ -13,7 +13,7 @@ export default function AIVarroaTreatmentPage() {
         { key: 'mites_per_100_bees',  label: 'Mites / 100 bees', type: 'number' },
         { key: 'season',              label: 'Season' },
       ]}
-      run={(v) => aiVarroaTreatmentRecommend(v)}
+      run={(v, requestOptions) => aiVarroaTreatmentRecommend(v, requestOptions)}
     />
   );
 }

@@ -1,22 +1,24 @@
 // AI helper service for AIBeekeepingApiary
 // Credentials are accepted only from this process environment.
+const { activeExecution, ensureActive } = require('./aiExecution');
 
 function getOpenRouterCreds() {
   const key = process.env.OPENROUTER_API_KEY || '';
-  const model = process.env.OPENROUTER_MODEL || 'anthropic/claude-haiku-4.5';
+  const model = process.env.OPENROUTER_MODEL || '';
   return { key, model };
 }
 
 const SYSTEM_PROMPT =
   'You are a senior apicultural / commercial beekeeping operations analyst supporting an apiary management center. ' +
   'You provide rigorous, field-grade reasoning on hive health, queen status, varroa management, pollination logistics, ' +
-  'honey harvest forecasting, and disease response. Always return strict JSON in the exact schema requested.';
+  'honey harvest forecasting, and disease response. Always return strict JSON in the exact schema requested. ' +
+  'Separate hypothetical planning examples from actual supplied records. Never treat hypothetical brood metrics or observations as measured facts. A generated plan is not human authorization or a completed action. Require a qualified beekeeper and applicable label/regulatory review before action.';
 
 function callOpenRouter(systemPrompt, userPrompt) {
   return new Promise((resolve, reject) => {
     const { key, model } = getOpenRouterCreds();
-    if (!key) {
-      return resolve({ error: 'OPENROUTER_API_KEY not configured' });
+    if (!key || !model) {
+      return reject(Object.assign(new Error('The configured OpenRouter key and model are required'), { status: 503 }));
     }
     const https = require('https');
     const payload = JSON.stringify({
@@ -42,25 +44,27 @@ function callOpenRouter(systemPrompt, userPrompt) {
       },
     };
 
-    const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', (chunk) => (body += chunk));
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(body);
-          if (parsed.error) {
-            return resolve({ error: parsed.error.message || 'OpenRouter error', raw: body });
-          }
-          const content = parsed.choices?.[0]?.message?.content || '';
-          resolve(content);
-        } catch (e) {
-          resolve({ error: 'AI response parse failed', raw: body });
-        }
+    const context=activeExecution();
+    try { ensureActive(context); } catch(error) { return reject(error); }
+    let settled=false,timer;
+    const done=(error,value)=>{if(settled)return;settled=true;clearTimeout(timer);context?.controller.signal.removeEventListener('abort',cancel);error?reject(error):resolve(value);};
+    const cancel=()=>{let error;try{ensureActive(context);}catch(failure){error=failure;}req.destroy();done(error||Object.assign(new Error('Request cancelled'),{status:499}));};
+    const req=https.request(options,(res)=>{
+      let body='';res.on('data',chunk=>{body+=chunk;if(body.length>2000000){req.destroy();done(Object.assign(new Error('OpenRouter returned an oversized response'),{status:502}));}});
+      res.on('error',()=>done(Object.assign(new Error('OpenRouter response could not be read'),{status:502})));
+      res.on('end',()=>{
+        try{
+          ensureActive(context);const parsed=JSON.parse(body),content=parsed.choices?.[0]?.message?.content;
+          if(res.statusCode<200||res.statusCode>=300||parsed.error)throw Object.assign(new Error('OpenRouter rejected the request'),{status:502});
+          if(!parsed.id||typeof content!=='string'||!content.trim())throw Object.assign(new Error('OpenRouter returned an empty answer or missing provider receipt'),{status:502});
+          done(null,content);
+        }catch(error){done(error.status?error:Object.assign(new Error('OpenRouter returned an unreadable response'),{status:502}));}
       });
     });
-    req.on('error', (e) => resolve({ error: e.message }));
-    req.write(payload);
-    req.end();
+    req.on('error',()=>{try{ensureActive(context);}catch(error){return done(error);}done(Object.assign(new Error('OpenRouter could not be reached'),{status:502}));});
+    timer=setTimeout(()=>{req.destroy();done(Object.assign(new Error('OpenRouter request timed out'),{status:504}));},45000);
+    context?.controller.signal.addEventListener('abort',cancel,{once:true});
+    req.write(payload);req.end();
   });
 }
 

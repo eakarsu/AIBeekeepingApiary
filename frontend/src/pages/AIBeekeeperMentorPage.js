@@ -7,12 +7,11 @@ export default function AIBeekeeperMentorPage() {
     <AIPage
       title="AI · Beekeeper Mentor"
       feature="beekeeper-mentor"
-      subtitle="Context-aware Q&A grounded in your own apiary state."
-      buttonLabel="Ask Mentor"
+      subtitle="Context-aware questions grounded in the native records accessible to authorized app users."
       inputs={[
         { key: 'question', label: 'Your question', type: 'textarea' },
       ]}
-      run={(v) => aiBeekeeperMentor(v)}
+      run={(v, requestOptions) => aiBeekeeperMentor(v, requestOptions)}
     />
   );
 }

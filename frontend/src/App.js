@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
+import ApiaryReadinessPage from './pages/ApiaryReadinessPage';
 
 // 18 entity CRUD pages
 import ApiariesPage from './pages/ApiariesPage';
@@ -91,6 +92,7 @@ function ShellRoutes() {
         <Route path="/codex/operations" element={<CodexOperationsFeature />} />
 
             <Route path="/" element={<Dashboard />} />
+            <Route path="/ai/apiary-readiness" element={<ApiaryReadinessPage />} />
 
             <Route path="/apiaries"              element={<ApiariesPage />} />
             <Route path="/hives"                 element={<HivesPage />} />

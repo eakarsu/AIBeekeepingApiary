@@ -11,7 +11,7 @@ export default function AIHiveStrengthPage() {
       inputs={[
         { key: 'hive_id', label: 'Hive ID' },
       ]}
-      run={(v) => aiHiveStrengthTrend(v)}
+      run={(v, requestOptions) => aiHiveStrengthTrend(v, requestOptions)}
     />
   );
 }

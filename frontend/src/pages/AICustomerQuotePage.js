@@ -14,7 +14,7 @@ export default function AICustomerQuotePage() {
         { key: 'hives',    label: 'Hives Recommended', type: 'number' },
         { key: 'weeks',    label: 'Service Weeks',     type: 'number' },
       ]}
-      run={(v) => aiCustomerQuote(v)}
+      run={(v, requestOptions) => aiCustomerQuote(v, requestOptions)}
     />
   );
 }

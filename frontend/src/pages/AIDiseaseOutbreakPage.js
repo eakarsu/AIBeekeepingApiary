@@ -11,7 +11,7 @@ export default function AIDiseaseOutbreakPage() {
       inputs={[
         { key: 'outbreak_id', label: 'Outbreak ID (optional)' },
       ]}
-      run={(v) => aiDiseaseOutbreakSummary(v)}
+      run={(v, requestOptions) => aiDiseaseOutbreakSummary(v, requestOptions)}
     />
   );
 }

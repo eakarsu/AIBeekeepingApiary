@@ -12,7 +12,7 @@ export default function AIHarvestForecastPage() {
         { key: 'horizon_weeks', label: 'Horizon (weeks)', type: 'number' },
         { key: 'type',          label: 'Honey Type (optional)' },
       ]}
-      run={(v) => aiHarvestForecast(v)}
+      run={(v, requestOptions) => aiHarvestForecast(v, requestOptions)}
     />
   );
 }

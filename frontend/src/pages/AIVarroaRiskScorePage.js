@@ -14,7 +14,7 @@ export default function AIVarroaRiskScorePage() {
         { key: 'drone_count', label: 'Drone count', type: 'number' },
         { key: 'brood_gap',   label: 'Brood gap?', type: 'select', options: ['true','false'] },
       ]}
-      run={(v) => aiVarroaRiskScore({ ...v, brood_gap: v.brood_gap === 'true' })}
+      run={(v, requestOptions) => aiVarroaRiskScore({ ...v, brood_gap: v.brood_gap === 'true' }, requestOptions)}
     />
   );
 }

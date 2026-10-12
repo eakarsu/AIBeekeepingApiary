@@ -11,7 +11,7 @@ export default function AIPlantSourceMapPage() {
       inputs={[
         { key: 'apiary_id', label: 'Apiary ID' },
       ]}
-      run={(v) => aiPlantSourceMap(v)}
+      run={(v, requestOptions) => aiPlantSourceMap(v, requestOptions)}
     />
   );
 }

@@ -2,17 +2,9 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 const ai = require('../services/ai');
+const { createAIExecutionMiddleware, freshRequestActor, ensureActive, saveAIResult } = require('../services/aiExecution');
 
-async function record(feature, input, output) {
-  try {
-    await pool.query(
-      'INSERT INTO ai_results (feature, input, output) VALUES ($1, $2, $3)',
-      [feature, input || {}, output || {}]
-    );
-  } catch (e) {
-    console.warn(`[ai] failed to record ${feature}:`, e.message);
-  }
-}
+async function record(feature,input,output,afterSave) { return saveAIResult(pool,feature,input,output,afterSave); }
 
 // ──────────────────────────────────────────────────────────────
 // Sample fills (5 per verb) — realistic beekeeping scenarios.
@@ -176,7 +168,7 @@ router.get('/samples', (req, res) => {
     const samples = SAMPLES[feature];
     if (!samples) return res.status(404).json({ error: `unknown feature: ${feature}` });
     res.json({ feature, samples });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // GET /api/ai/history?feature=<name>&limit=<n>
@@ -197,10 +189,18 @@ router.get('/history', async (req, res) => {
       );
     }
     res.json(r.rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
-// Helper that wraps an AI service call with DB recording.
+// Scope cancellation across native source loading, provider transport and transactional saves.
+    router.use(createAIExecutionMiddleware({pool}));
+    router.use(async(req,res,next)=>{
+      if(req.method!=='POST')return next();
+      try{await freshRequestActor(req,pool);ensureActive();next();}
+      catch(error){if(!res.destroyed)res.status(error.status||503).json({error:error.status?error.message:'Your account or source records could not be loaded. Retry before generating.'});}
+    });
+
+    // Helper that wraps an AI service call with DB recording.
 function runAi(featureName, serviceFn) {
   return async (req, res) => {
     try {
@@ -208,7 +208,7 @@ function runAi(featureName, serviceFn) {
       const result = await serviceFn(input);
       await record(featureName, input, result);
       res.json(result);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
   };
 }
 
@@ -223,7 +223,7 @@ router.post('/queen-status-from-sound', async (req, res) => {
     const result = await ai.queenStatusFromSound(input);
     await record('queen-status-from-sound', input, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 2. varroa-treatment-recommend
@@ -237,7 +237,7 @@ router.post('/varroa-treatment-recommend', async (req, res) => {
     const result = await ai.varroaTreatmentRecommend(input);
     await record('varroa-treatment-recommend', input, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 3. swarm-risk-predict
@@ -255,7 +255,7 @@ router.post('/swarm-risk-predict', async (req, res) => {
     const result = await ai.swarmRiskPredict(enriched);
     await record('swarm-risk-predict', { ...input, hives_count: hives.length }, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 4. pollination-route-plan
@@ -269,7 +269,7 @@ router.post('/pollination-route-plan', async (req, res) => {
     const result = await ai.pollinationRoutePlan(input);
     await record('pollination-route-plan', input, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 5. hive-strength-trend
@@ -287,7 +287,7 @@ router.post('/hive-strength-trend', async (req, res) => {
     const result = await ai.hiveStrengthTrend(input);
     await record('hive-strength-trend', input, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 6. executive-brief
@@ -318,7 +318,7 @@ router.post('/executive-brief', async (req, res) => {
     const out = { snapshot, brief: result };
     await record('executive-brief', { notes: req.body?.notes || null }, out);
     res.json(out);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 7. harvest-forecast
@@ -330,7 +330,7 @@ router.post('/harvest-forecast', async (req, res) => {
     const result = await ai.harvestForecast(input);
     await record('harvest-forecast', { horizon_weeks: input.horizon_weeks, type: input.type }, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 8. treatment-efficacy-analyze
@@ -346,7 +346,7 @@ router.post('/treatment-efficacy-analyze', async (req, res) => {
     const result = await ai.treatmentEfficacyAnalyze(input);
     await record('treatment-efficacy-analyze', { product: input.product }, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 9. customer-quote
@@ -363,7 +363,7 @@ router.post('/weather-impact-brief', async (req, res) => {
     const result = await ai.weatherImpactBrief(input);
     await record('weather-impact-brief', input, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 11. disease-outbreak-summary
@@ -380,7 +380,7 @@ router.post('/disease-outbreak-summary', async (req, res) => {
     const result = await ai.diseaseOutbreakSummary(input);
     await record('disease-outbreak-summary', { outbreak_id: input.outbreak_id }, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 12. supply-resupply-plan
@@ -392,7 +392,7 @@ router.post('/supply-resupply-plan', async (req, res) => {
     const result = await ai.supplyResupplyPlan(input);
     await record('supply-resupply-plan', { focus: input.focus }, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 13. beekeeper-schedule
@@ -408,7 +408,7 @@ router.post('/beekeeper-schedule', async (req, res) => {
     const result = await ai.beekeeperSchedule(input);
     await record('beekeeper-schedule', { week_start: input.week_start, focus: input.focus }, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 14. plant-source-map
@@ -424,7 +424,7 @@ router.post('/plant-source-map', async (req, res) => {
     const result = await ai.plantSourceMap(input);
     await record('plant-source-map', { apiary_id: input.apiary_id }, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 15. equipment-prognostic
@@ -436,7 +436,7 @@ router.post('/equipment-prognostic', async (req, res) => {
     const result = await ai.equipmentPrognostic(input);
     await record('equipment-prognostic', { focus: input.focus }, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 16. vendor-quote-compare
@@ -460,7 +460,7 @@ router.post('/hive-acoustic-anomaly', async (req, res) => {
     const result = await ai.hiveAcousticAnomaly(input);
     await record('hive-acoustic-anomaly', input, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 18. varroa-risk-score — pre-count risk from narrative.
@@ -477,7 +477,7 @@ router.post('/varroa-risk-score', async (req, res) => {
     const result = await ai.varroaRiskScore(input);
     await record('varroa-risk-score', input, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 19. queen-health-assess — multi-signal queen vitality.
@@ -498,7 +498,7 @@ router.post('/queen-health-assess', async (req, res) => {
     const result = await ai.queenHealthAssess(input);
     await record('queen-health-assess', input, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 20. beekeeper-mentor — context-aware Q&A, persists to mentor_threads.
@@ -518,9 +518,8 @@ router.post('/beekeeper-mentor', async (req, res) => {
       recent_treatments: tx.rows,
     };
     const result = await ai.beekeeperMentor(input);
-    await record('beekeeper-mentor', { question: input.question }, result);
-    try {
-      await pool.query(
+    await record('beekeeper-mentor', { question: input.question }, result, async client => {
+      await client.query(
         `INSERT INTO mentor_threads (thread_id, user_email, question, answer, context_summary)
          VALUES ($1, $2, $3, $4, $5)`,
         [
@@ -531,9 +530,9 @@ router.post('/beekeeper-mentor', async (req, res) => {
           `apiaries=${ap.rows.length}, hives=${hv.rows.length}`,
         ]
       );
-    } catch (e) { console.warn('[ai] mentor thread persist failed:', e.message); }
+    });
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 // 21. foraging-optimizer — join weather + plants + apiaries.
@@ -553,7 +552,7 @@ router.post('/foraging-optimizer', async (req, res) => {
     const result = await ai.foragingOptimizer(input);
     await record('foraging-optimizer', { apiary_id: input.apiary_id }, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 router.post('/nectar-flow-calendar', async (req, res) => {
@@ -561,8 +560,8 @@ router.post('/nectar-flow-calendar', async (req, res) => {
     const input = req.body || {};
     const apiaryId = input.apiary_id || 'apiary';
     const blooms = Array.isArray(input.bloom_sources) ? input.bloom_sources : ['clover', 'wildflower'];
-    const rainfall = Number(input.rainfall_mm_14d || 0);
-    const highC = Number(input.forecast_high_c || 22);
+    const rainfall = Number(input.rainfall_mm_14d ?? 0);
+    const highC = Number(input.forecast_high_c ?? 22);
     const base = Math.min(100, Math.max(0, blooms.length * 18 + rainfall * 0.8 - Math.max(0, highC - 30) * 3));
     const flowBand = base >= 70 ? 'heavy' : base >= 40 ? 'moderate' : 'light';
     const calendar = [1, 2, 3, 4].map((week) => {
@@ -583,7 +582,7 @@ router.post('/nectar-flow-calendar', async (req, res) => {
     };
     await record('nectar-flow-calendar', input, result);
     res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { if (!res.destroyed) res.status(e.status || 503).json({ error: e.status ? e.message : 'Native source data or saved results are unavailable. Retry before generating.' }); }
 });
 
 module.exports = router;

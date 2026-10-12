@@ -134,7 +134,7 @@ export const login = (email, password) =>
 export const getMe = () => request('/auth/me');
 
 // AI endpoints — 16 verbs
-const aiPost = (verb) => (body) => request(`/ai/${verb}`, { method: 'POST', body: JSON.stringify(body || {}) });
+const aiPost = (verb) => (body, options = {}) => request(`/ai/${verb}`, { ...options, method: 'POST', body: JSON.stringify(body || {}) });
 
 export const aiQueenStatusFromSound      = aiPost('queen-status-from-sound');
 export const aiVarroaTreatmentRecommend  = aiPost('varroa-treatment-recommend');
@@ -211,3 +211,12 @@ export const webhooksApi = {
   }),
   deliveries: (id)    => request(`/webhooks/${id}/deliveries`),
 };
+
+// Read actual native accessible records; never invent a business reference or infer user ownership.
+export const getAIReferenceRecords = (kind, options = {}) => {
+  const routes = { hive_id: 'hives', apiary_id: 'apiaries', queen_id: 'queens', outbreak_id: 'disease-outbreaks', hive_sounds: 'hive-sounds', varroa_counts: 'varroa-counts' };
+  if (!routes[kind]) throw new Error('Unsupported native reference type');
+  return request('/' + routes[kind], options);
+};
+export const getApiaryReadinessHistory = (options = {}) => request('/runtime-ai/apiary-readiness/history', options);
+export const generateApiaryReadiness = (prompt, options = {}) => request('/runtime-ai/apiary-readiness', { ...options, method: 'POST', body: JSON.stringify({ prompt }) });

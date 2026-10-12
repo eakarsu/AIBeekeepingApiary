@@ -12,7 +12,7 @@ export default function AIBeekeeperSchedulePage() {
         { key: 'week_start', label: 'Week Start (YYYY-MM-DD)' },
         { key: 'focus',      label: 'Focus (optional)' },
       ]}
-      run={(v) => aiBeekeeperSchedule(v)}
+      run={(v, requestOptions) => aiBeekeeperSchedule(v, requestOptions)}
     />
   );
 }

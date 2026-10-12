@@ -12,10 +12,10 @@ export default function AIPollinationRoutePage() {
         { key: 'stops',       label: 'Stops (comma-separated)', type: 'textarea' },
         { key: 'total_hives', label: 'Total Hives', type: 'number' },
       ]}
-      run={(v) => aiPollinationRoutePlan({
+      run={(v, requestOptions) => aiPollinationRoutePlan({
         stops: typeof v.stops === 'string' ? v.stops.split(',').map((s) => s.trim()).filter(Boolean) : v.stops,
         total_hives: v.total_hives,
-      })}
+      }, requestOptions)}
     />
   );
 }

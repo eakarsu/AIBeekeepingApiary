@@ -12,7 +12,7 @@ export default function AIForagingOptimizerPage() {
         { key: 'apiary_id', label: 'Apiary ID' },
         { key: 'notes',     label: 'Constraints / notes', type: 'textarea' },
       ]}
-      run={(v) => aiForagingOptimizer(v)}
+      run={(v, requestOptions) => aiForagingOptimizer(v, requestOptions)}
     />
   );
 }

@@ -97,26 +97,20 @@ app.use('/api/weather-briefs',        require('./routes/weatherBriefs'));
 // Disease outbreaks + varroa counts wire side-effect notifications via a
 // lightweight POST-result interceptor (avoids touching _crudFactory).
 function withCreatedHook(router, hook) {
-  router.stack.unshift({
-    route: null,
-    name: '_createdHook',
-    handle: (req, res, next) => {
-      if (req.method !== 'POST' || req.path !== '/') return next();
-      const origJson = res.json.bind(res);
-      res.json = (body) => {
-        try {
-          if (res.statusCode === 201 && body && body.id) {
-            Promise.resolve(hook(body, req)).catch((e) =>
-              console.warn(`[createdHook] failed:`, e.message)
-            );
-          }
-        } catch (_) {}
-        return origJson(body);
-      };
-      next();
-    },
+  const wrapped = express.Router();
+  wrapped.use((req, res, next) => {
+    if (req.method !== 'POST' || req.path !== '/') return next();
+    const origJson = res.json.bind(res);
+    res.json = body => {
+      if (res.statusCode === 201 && body && body.id) {
+        Promise.resolve(hook(body, req)).catch(error => console.warn('[createdHook] failed:', error.message));
+      }
+      return origJson(body);
+    };
+    next();
   });
-  return router;
+  wrapped.use(router);
+  return wrapped;
 }
 
 app.use('/api/disease-outbreaks',     withCreatedHook(require('./routes/diseaseOutbreaks'), onDiseaseOutbreakCreated));

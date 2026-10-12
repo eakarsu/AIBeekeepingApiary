@@ -11,7 +11,7 @@ export default function AIVendorQuoteComparePage() {
       inputs={[
         { key: 'item', label: 'Item' },
       ]}
-      run={(v) => aiVendorQuoteCompare(v)}
+      run={(v, requestOptions) => aiVendorQuoteCompare(v, requestOptions)}
     />
   );
 }

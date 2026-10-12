@@ -11,7 +11,7 @@ export default function AIEquipmentPrognosticPage() {
       inputs={[
         { key: 'focus', label: 'Focus (optional)' },
       ]}
-      run={(v) => aiEquipmentPrognostic(v)}
+      run={(v, requestOptions) => aiEquipmentPrognostic(v, requestOptions)}
     />
   );
 }

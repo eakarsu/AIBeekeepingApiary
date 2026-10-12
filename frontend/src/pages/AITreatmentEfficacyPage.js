@@ -11,7 +11,7 @@ export default function AITreatmentEfficacyPage() {
       inputs={[
         { key: 'product', label: 'Product (optional filter)' },
       ]}
-      run={(v) => aiTreatmentEfficacyAnalyze(v)}
+      run={(v, requestOptions) => aiTreatmentEfficacyAnalyze(v, requestOptions)}
     />
   );
 }

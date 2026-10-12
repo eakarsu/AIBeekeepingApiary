@@ -12,7 +12,7 @@ export default function AISwarmRiskPage() {
         { key: 'apiary_id', label: 'Apiary ID' },
         { key: 'notes',     label: 'Context Notes', type: 'textarea' },
       ]}
-      run={(v) => aiSwarmRiskPredict(v)}
+      run={(v, requestOptions) => aiSwarmRiskPredict(v, requestOptions)}
     />
   );
 }

@@ -11,7 +11,7 @@ export default function AIWeatherImpactPage() {
       inputs={[
         { key: 'location', label: 'Location' },
       ]}
-      run={(v) => aiWeatherImpactBrief(v)}
+      run={(v, requestOptions) => aiWeatherImpactBrief(v, requestOptions)}
     />
   );
 }

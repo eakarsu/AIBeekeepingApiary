@@ -11,7 +11,7 @@ export default function AISupplyResupplyPage() {
       inputs={[
         { key: 'focus', label: 'Focus (optional)' },
       ]}
-      run={(v) => aiSupplyResupplyPlan(v)}
+      run={(v, requestOptions) => aiSupplyResupplyPlan(v, requestOptions)}
     />
   );
 }
