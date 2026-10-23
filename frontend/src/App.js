@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
+import FeaturePackPanel from './components/FeaturePackPanel';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
 import ApiaryReadinessPage from './pages/ApiaryReadinessPage';
@@ -50,6 +51,8 @@ import WebhooksPage from './pages/WebhooksPage';
 import CustomViewsPage from './pages/CustomViewsPage';
 
 import LoginPage from './pages/LoginPage';
+import TasksPage from './pages/TasksPage';
+import FeaturePackAiPage from './pages/FeaturePackAiPage';
 import { getToken } from './services/api';
 
 import './App.css';
@@ -92,6 +95,9 @@ function ShellRoutes() {
         <Route path="/codex/operations" element={<CodexOperationsFeature />} />
 
             <Route path="/" element={<Dashboard />} />
+            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/ai/feature-pack" element={<FeaturePackAiPage />} />
+            <Route path="/feature-pack" element={<FeaturePackPanel />} />
             <Route path="/ai/apiary-readiness" element={<ApiaryReadinessPage />} />
 
             <Route path="/apiaries"              element={<ApiariesPage />} />

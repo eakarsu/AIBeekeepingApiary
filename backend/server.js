@@ -121,6 +121,13 @@ app.use('/api/audit-log',             require('./routes/auditLog'));
 
 // AI routes (16 verbs + samples + history)
 app.use('/api/ai', require('./routes/ai'));
+app.use('/api/tasks', require('./routes/featurePack27b').createTasksRouter({ pool }));
+const featurePackAiLoaders = {
+  'colony-health-summary': async (pool) => (await pool.query('SELECT * FROM hives ORDER BY id DESC')).rows,
+  'varroa-risk-summary': async (pool) => (await pool.query('SELECT * FROM varroa_counts ORDER BY id DESC')).rows,
+  'harvest-readiness': async (pool) => ({ harvests: (await pool.query('SELECT * FROM honey_harvests ORDER BY id DESC')).rows, hives: (await pool.query('SELECT * FROM hives ORDER BY id DESC')).rows }),
+};
+app.use('/api/ai/feature-pack', require('./routes/featurePack28a').createFeaturePackAiRouter({ pool, loaders: featurePackAiLoaders }));
 
 // Cross-cutting
 app.use('/api/notifications', require('./routes/notifications'));

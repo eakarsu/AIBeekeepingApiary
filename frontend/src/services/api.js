@@ -78,7 +78,7 @@ async function request(url, options = {}) {
 // Generic CRUD factory
 function crud(base) {
   return {
-    list:   ()       => request(`/${base}`),
+    list:   (params) => { const qs = params ? new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null))).toString() : ''; return request(`/${base}${qs ? `?${qs}` : ''}`); },
     get:    (id)     => request(`/${base}/${id}`),
     create: (data)   => request(`/${base}`, { method: 'POST', body: JSON.stringify(data) }),
     update: (id, d)  => request(`/${base}/${id}`, { method: 'PUT',  body: JSON.stringify(d) }),
@@ -220,3 +220,8 @@ export const getAIReferenceRecords = (kind, options = {}) => {
 };
 export const getApiaryReadinessHistory = (options = {}) => request('/runtime-ai/apiary-readiness/history', options);
 export const generateApiaryReadiness = (prompt, options = {}) => request('/runtime-ai/apiary-readiness', { ...options, method: 'POST', body: JSON.stringify({ prompt }) });
+
+// Wave 28A feature pack
+export const tasksApi = crud('tasks');
+export const runFeaturePackAi = (feature, body = {}) => request(`/ai/feature-pack/${feature}`, { method: 'POST', body: JSON.stringify(body) });
+export const getFeaturePackAiFeatures = () => request('/ai/feature-pack/features');
